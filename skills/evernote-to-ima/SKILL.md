@@ -5,7 +5,7 @@ description: >-
   同步导出明文 enex、批量转换 Markdown、网页剪藏去广告瘦身、按笔记本合并省流、
   上传 ima 知识库。当用户需要把印象笔记迁移到 ima / Obsidian 等 Markdown 知识库、
   或处理 .notes/.enex 导出文件时使用。
-version: "1.0.0"
+version: "1.0.2"
 license: MIT
 tags: [印象笔记, evernote, 迁移, ima, 知识库, markdown]
 ---
