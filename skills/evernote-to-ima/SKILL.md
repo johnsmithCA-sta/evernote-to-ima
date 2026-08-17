@@ -5,7 +5,7 @@ description: >-
   同步导出明文 enex、批量转换 Markdown、网页剪藏去广告瘦身、按笔记本合并省流、
   上传 ima 知识库。当用户需要把印象笔记迁移到 ima / Obsidian 等 Markdown 知识库、
   或处理 .notes/.enex 导出文件时使用。
-version: "1.0.2"
+version: "1.0.4"
 license: MIT
 tags: [印象笔记, evernote, 迁移, ima, 知识库, markdown]
 ---
@@ -64,26 +64,42 @@ python3 scripts/merge_notes.py <markdown目录> <输出目录> \
 
 将数百篇笔记合并为少量文件，大幅减少 ima 导入次数。
 
-### 第 5 步：导入 ima（需 ima-mcp 连接器）
-
-流程：`create_media`（获取 COS 临时凭证 + media_id）→ 用 `upload_cos.py` 上传 COS → `add_knowledge` 入库：
+### 第 5 步：上云前敏感信息扫描（必须执行）
 
 ```bash
-python3 scripts/upload_cos.py <凭证json> <本地文件>   # 凭证来自 create_media 返回
+python3 scripts/sensitive_scan.py <markdown目录> [--json 审计报告.json]
+```
+
+上传 ima/COS 前，扫描笔记中可能包含的身份证号、手机号、银行卡号、邮箱、账号密码备份、个人日记等敏感信息，输出疑似清单；退出码为 2 表示存在疑似敏感笔记，须人工确认是否排除。敏感笔记本（个人日记、账号密码备份）**不建议导入云端**。
+
+### 第 6 步：导入 ima（需 ima-mcp 连接器）
+
+流程：`create_media`（获取 COS 临时凭证 + media_id）→ 用 `upload_cos.py` 上传 COS → `add_knowledge` 入库。凭证推荐用环境变量或标准输入传入，避免凭证落盘：
+
+```bash
+# 推荐：环境变量传入（凭证不落盘）
+export COS_CRED_JSON='<create_media 返回的完整 JSON>'
+python3 scripts/upload_cos.py --env <本地文件>
+
+# 或：标准输入传入
+echo '<create_media 返回的完整 JSON>' | python3 scripts/upload_cos.py - <本地文件>
+
+# 兼容旧用法（凭证文件，用后请立即删除）
+python3 scripts/upload_cos.py <凭证json> <本地文件>
 ```
 
 ## 依赖
 
 - Python 3.6+（脚本为纯标准库，零第三方依赖）
-- 可选：evernote-backup（第 1 步）、cos-python-sdk-v5（第 5 步 COS 上传）
+- 可选：evernote-backup（第 1 步）、cos-python-sdk-v5（第 6 步 COS 上传）
 - 系统 openssl（AES 解密）
 
 ## 边界与安全
 
 - `.notes` 系统级加密无法解密，必须走 evernote-backup 官方 API
-- 敏感笔记本（个人日记、账号密码备份）不建议导入云端
+- 敏感笔记本（个人日记、账号密码备份）不建议导入云端；上云前必须运行 `sensitive_scan.py` 扫描并人工确认
 - `.enex` 明文备份请永久保留，转换完成前勿删印象笔记原数据
-- COS 临时凭证有效期 12 小时，含凭证的中间文件用后立即删除
+- COS 临时凭证有效期 12 小时；凭证推荐用 `--env`/`--stdin` 传入（不落盘），含凭证的中间文件用后立即删除
 - 支持格式：印象笔记导出的 .enex/.notes（XML），输出 GitHub 风格 Markdown
 
 ## 使用示例
@@ -93,5 +109,6 @@ python3 scripts/upload_cos.py <凭证json> <本地文件>   # 凭证来自 creat
 2. 导出明文 enex 后，运行 convert_all.py 批量转 Markdown
 3. 运行 slim_notes.py 瘦身去广告
 4. 按笔记本 merge_notes.py 合并省流
-5. 通过 ima-mcp 连接器逐批 create_media → 上传 → add_knowledge 入库
-6. 输出迁移报告：篇数、归库映射、失败清单、待办事项
+5. 运行 sensitive_scan.py 扫描敏感信息并人工确认排除清单
+6. 通过 ima-mcp 连接器逐批 create_media → 上传 → add_knowledge 入库（凭证用 --env/--stdin 传入）
+7. 输出迁移报告：篇数、归库映射、失败清单、敏感信息扫描结果、待办事项
